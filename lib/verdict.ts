@@ -41,7 +41,7 @@ export function scoreSpot(input: VerdictInput): VerdictResult {
   }
   if (input.mpa.kind === "restricted") {
     verdict = worst(verdict, "caution");
-    reasons.push(`Restricted area: ${input.mpa.note}`);
+    reasons.push("Marine protected area — take restrictions apply (see MPA note).");
   }
 
   if (input.advisory === "closure") {

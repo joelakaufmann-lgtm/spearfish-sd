@@ -20,7 +20,7 @@ export interface Spot {
 
 export const TIDE_STATIONS: Record<TideStation, string> = {
   "9410170": "San Diego Bay",
-  "9410230": "La Jolla (Scripps Pier)",
+  "9410230": "Scripps Pier",
 };
 
 export const SPOTS: Spot[] = [
