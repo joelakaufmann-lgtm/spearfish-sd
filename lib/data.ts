@@ -5,6 +5,7 @@ import { fetchMarine, type MarineConditions } from "./marine";
 import { matchAdvisory } from "./match";
 import { scoreSpot, overallHeadline, type VerdictResult, type AdvisoryStatus } from "./verdict";
 import { fetchSun, type SunTimes } from "./sun";
+import { fishForSpot, seasonNotes, type FishNow } from "./fish";
 
 export interface SpotReport {
   spot: Spot;
@@ -13,6 +14,7 @@ export interface SpotReport {
   advisoryRow: AdvisoryRow | null;
   conditions: MarineConditions;
   tides: StationTides | null;
+  fish: FishNow[];
 }
 
 export interface DashboardData {
@@ -21,7 +23,16 @@ export interface DashboardData {
   advisories: AdvisoriesResult;
   stationTides: StationTides[];
   sun: SunTimes | null;
+  seasonNotes: string[];
   generatedAt: string;
+}
+
+function todayLA(): { month: number; day: number } {
+  const [, month, day] = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Los_Angeles" })
+    .format(new Date())
+    .split("-")
+    .map(Number);
+  return { month, day };
 }
 
 const VERDICT_ORDER = { go: 0, caution: 1, "no-go": 2 } as const;
@@ -68,7 +79,15 @@ export async function getDashboardData(): Promise<DashboardData> {
       tide: tides?.state ?? null,
     });
 
-    return { spot, verdict, advisoryStatus, advisoryRow, conditions, tides };
+    return {
+      spot,
+      verdict,
+      advisoryStatus,
+      advisoryRow,
+      conditions,
+      tides,
+      fish: fishForSpot(spot.targets, todayLA().month),
+    };
   });
 
   reports.sort((a, b) => sortRank(a) - sortRank(b));
@@ -80,12 +99,14 @@ export async function getDashboardData(): Promise<DashboardData> {
     }))
   );
 
+  const { month, day } = todayLA();
   return {
     headline,
     reports,
     advisories,
     stationTides: tidesList.filter((t): t is StationTides => t != null),
     sun,
+    seasonNotes: seasonNotes(month, day),
     generatedAt: new Date().toISOString(),
   };
 }

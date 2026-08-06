@@ -65,7 +65,20 @@ export function TideChart({
   const step = yMax - yMin > 6 ? 2 : 1;
   const yTicks: number[] = [];
   for (let v = yMin; v <= yMax; v += step) yTicks.push(v);
-  const xTicks = [360, 720, 1080]; // 6am, 12pm, 6pm
+  const hourTicks = Array.from({ length: 24 }, (_, h) => h); // hourly axis
+
+  // Slack windows: ±2h around each high/low, merged where they overlap
+  const eventMinutes = events.map(
+    (e) => Number(e.time.slice(11, 13)) * 60 + Number(e.time.slice(14, 16))
+  );
+  const slackWindows: [number, number][] = [];
+  for (const min of [...eventMinutes].sort((a, b) => a - b)) {
+    const from = Math.max(0, min - 120);
+    const to = Math.min(1440, min + 120);
+    const last = slackWindows[slackWindows.length - 1];
+    if (last && from <= last[1]) last[1] = to;
+    else slackWindows.push([from, to]);
+  }
 
   const linePath = curve
     .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.minutes).toFixed(1)},${y(p.heightFt).toFixed(1)}`)
@@ -92,12 +105,30 @@ export function TideChart({
       className="viz-root relative rounded-xl border p-3"
       style={{ background: "var(--viz-surface)", borderColor: "var(--viz-border)" }}
     >
-      <h3 className="mb-1 px-1 text-sm font-semibold" style={{ color: "var(--viz-ink)" }}>
-        {title}
-        <span className="ml-2 font-normal" style={{ color: "var(--viz-muted)" }}>
-          tide height (ft, MLLW) · today
-        </span>
-      </h3>
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 px-1">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--viz-ink)" }}>
+          {title}
+          <span className="ml-2 font-normal" style={{ color: "var(--viz-muted)" }}>
+            tide height (ft, MLLW) · today
+          </span>
+        </h3>
+        <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--viz-ink-2)" }}>
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ background: "var(--viz-slack)", border: "1px solid var(--viz-slack-solid)" }}
+            />
+            slack (±2h of high/low) — good time to go
+          </span>
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ background: "var(--viz-night)", border: "1px solid var(--viz-border)" }}
+            />
+            night
+          </span>
+        </div>
+      </div>
       <div ref={wrapRef}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -131,7 +162,7 @@ export function TideChart({
                 height={PH}
                 fill="var(--viz-night)"
               />
-              <text x={x(sun.sunriseMinutes) + 4} y={M.t + 11} fontSize="10" fill="var(--viz-muted)">
+              <text x={x(sun.sunriseMinutes) + 4} y={M.t + 11} fontSize="10" fill="var(--viz-ink-2)">
                 ☀ {fmtMin(sun.sunriseMinutes)}
               </text>
               <text
@@ -139,30 +170,63 @@ export function TideChart({
                 y={M.t + 11}
                 fontSize="10"
                 textAnchor="end"
-                fill="var(--viz-muted)"
+                fill="var(--viz-ink-2)"
               >
                 ☾ {fmtMin(sun.sunsetMinutes)}
               </text>
             </>
           )}
 
+          {/* slack-tide windows (over night shading, under the data) */}
+          {slackWindows.map(([from, to]) => (
+            <rect
+              key={from}
+              x={x(from)}
+              y={M.t}
+              width={x(to) - x(from)}
+              height={PH}
+              fill="var(--viz-slack)"
+            />
+          ))}
+
           {/* gridlines + y ticks */}
           {yTicks.map((v) => (
             <g key={v}>
               <line x1={M.l} x2={W - M.r} y1={y(v)} y2={y(v)} stroke="var(--viz-grid)" strokeWidth="1" />
-              <text x={M.l - 6} y={y(v) + 3} fontSize="10" textAnchor="end" fill="var(--viz-muted)"
+              <text x={M.l - 6} y={y(v) + 3} fontSize="10" textAnchor="end" fill="var(--viz-ink-2)"
                 style={{ fontVariantNumeric: "tabular-nums" }}>
                 {v}
               </text>
             </g>
           ))}
 
-          {/* x ticks */}
-          {xTicks.map((min) => (
-            <text key={min} x={x(min)} y={H - 8} fontSize="10" textAnchor="middle" fill="var(--viz-muted)">
-              {min === 720 ? "12pm" : fmtMin(min).replace(":00", "").replace("p", "pm").replace("a", "am")}
-            </text>
-          ))}
+          {/* hourly x axis */}
+          {hourTicks.map((h) => {
+            const min = h * 60;
+            const label = h === 0 ? "12a" : h === 12 ? "12p" : String(h % 12);
+            return (
+              <g key={h}>
+                <line
+                  x1={x(min)}
+                  x2={x(min)}
+                  y1={M.t + PH}
+                  y2={M.t + PH + 4}
+                  stroke="var(--viz-axis)"
+                  strokeWidth="1"
+                />
+                <text
+                  x={x(min)}
+                  y={H - 6}
+                  fontSize="9"
+                  textAnchor="middle"
+                  fill="var(--viz-ink-2)"
+                  style={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })}
 
           {/* area + line */}
           <path d={areaPath} fill="var(--viz-series)" opacity="0.1" />

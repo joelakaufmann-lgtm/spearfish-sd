@@ -36,13 +36,13 @@ describe("matchAdvisory", () => {
     expect(m?.status).toBe("closure");
   });
 
-  it("matches Swami's spot to Moonlight Beach advisory", () => {
-    const m = matchAdvisory(spot("swamis"), rows);
+  it("matches Encinitas spot to Moonlight Beach advisory", () => {
+    const m = matchAdvisory(spot("encinitas"), rows);
     expect(m?.site).toMatch(/Moonlight/);
   });
 
-  it("matches La Jolla Cove to Children's Pool", () => {
-    const m = matchAdvisory(spot("la-jolla-cove"), rows);
+  it("matches the La Jolla open corridor to Children's Pool", () => {
+    const m = matchAdvisory(spot("la-jolla-corridor"), rows);
     expect(m?.site).toBe("Children's Pool");
   });
 

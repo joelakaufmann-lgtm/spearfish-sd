@@ -6,6 +6,8 @@ export type AdvisoryStatus = "closure" | "advisory" | "open" | "unknown";
 export interface TideState {
   direction: "rising" | "falling" | null;
   nextEvent: { type: "H" | "L"; time: string; heightFt: number } | null;
+  /** Within ~2h of a high or low — slack water, the favored dive window */
+  nearSlack?: boolean;
 }
 
 export interface VerdictInput {
@@ -95,7 +97,9 @@ export function scoreSpot(input: VerdictInput): VerdictResult {
   }
 
   // Tide is informational — never gates alone
-  if (input.tide?.direction === "rising") {
+  if (input.tide?.nearSlack) {
+    reasons.push("Slack tide window — within ~2h of a high/low, the best time to be in the water.");
+  } else if (input.tide?.direction === "rising") {
     reasons.push("Incoming tide — typically brings cleaner water.");
   } else if (input.tide?.direction === "falling") {
     reasons.push("Outgoing tide — can pull turbid water off the beach.");

@@ -63,6 +63,13 @@ describe("scoreSpot", () => {
     expect(r.verdict).toBe("go");
     expect(r.reasons.join(" ")).toMatch(/Outgoing tide/);
   });
+
+  it("slack window adds a positive reason and overrides direction messaging", () => {
+    const r = scoreSpot({ ...base, tide: { direction: "falling", nextEvent: null, nearSlack: true } });
+    expect(r.verdict).toBe("go");
+    expect(r.reasons.join(" ")).toMatch(/Slack tide window/);
+    expect(r.reasons.join(" ")).not.toMatch(/Outgoing tide/);
+  });
 });
 
 describe("overallHeadline", () => {

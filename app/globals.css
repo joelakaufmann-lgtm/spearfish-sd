@@ -36,6 +36,8 @@ body {
   --viz-grid: #e1e0d9;
   --viz-axis: #c3c2b7;
   --viz-night: rgba(11, 11, 11, 0.05);
+  --viz-slack: rgba(12, 163, 12, 0.14);
+  --viz-slack-solid: #0ca30c;
   --viz-tooltip-bg: #ffffff;
   --viz-border: rgba(11, 11, 11, 0.1);
 }
@@ -50,6 +52,8 @@ body {
     --viz-grid: #2c2c2a;
     --viz-axis: #383835;
     --viz-night: rgba(255, 255, 255, 0.05);
+    --viz-slack: rgba(12, 163, 12, 0.2);
+    --viz-slack-solid: #0ca30c;
     --viz-tooltip-bg: #242423;
     --viz-border: rgba(255, 255, 255, 0.1);
   }

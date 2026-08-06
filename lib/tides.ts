@@ -43,13 +43,28 @@ function nowLocalString(): string {
     .replace("T", " ");
 }
 
+function toEpochMinutes(local: string): number {
+  // "YYYY-MM-DD HH:mm" → comparable minute count (days are close enough for deltas)
+  const [date, time] = local.split(" ");
+  const [yy, mm, dd] = date.split("-").map(Number);
+  const [h, m] = time.split(":").map(Number);
+  return ((yy * 372 + mm * 31 + dd) * 24 + h) * 60 + m;
+}
+
+export const SLACK_WINDOW_MIN = 120;
+
 export function deriveTideState(events: TideEvent[], nowLocal: string): TideState {
   const next = events.find((e) => e.time > nowLocal) ?? null;
-  if (!next) return { direction: null, nextEvent: null };
+  const nowMin = toEpochMinutes(nowLocal);
+  const nearSlack = events.some(
+    (e) => Math.abs(toEpochMinutes(e.time) - nowMin) <= SLACK_WINDOW_MIN
+  );
+  if (!next) return { direction: null, nextEvent: null, nearSlack };
   return {
     // Water is heading toward the next event: next high → rising, next low → falling
     direction: next.type === "H" ? "rising" : "falling",
     nextEvent: { type: next.type, time: next.time, heightFt: next.heightFt },
+    nearSlack,
   };
 }
 

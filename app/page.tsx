@@ -56,7 +56,13 @@ export default async function Home() {
         </div>
       </section>
 
-      <h2 className="mb-3 text-xl font-bold">Spots</h2>
+      <h2 className="mb-2 text-xl font-bold">Spots</h2>
+      {data.seasonNotes.length > 0 && (
+        <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
+          <span className="font-semibold">This time of year: </span>
+          {data.seasonNotes.join(" ")}
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         {data.reports.map((r) => (
           <SpotCard key={r.spot.slug} report={r} />

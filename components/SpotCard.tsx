@@ -65,6 +65,40 @@ export function SpotCard({ report }: { report: SpotReport }) {
 
       <MpaBadge mpa={spot.mpa} />
 
+      {report.fish.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Fish to expect now
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {report.fish
+              .filter((f) => f.likelyNow)
+              .map((f) => (
+                <span
+                  key={f.species.key}
+                  className="inline-flex items-baseline gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs dark:border-sky-800 dark:bg-sky-950"
+                  title={`Bag: ${f.species.bag} · Min size: ${f.species.size}`}
+                >
+                  <span className="font-medium text-sky-900 dark:text-sky-200">{f.species.name}</span>
+                  <span className="text-sky-700/70 dark:text-sky-400/70">
+                    {f.species.bag.split(" ")[0]}/day
+                    {f.species.size !== "none" ? ` · ${f.species.size}+` : ""}
+                  </span>
+                </span>
+              ))}
+          </div>
+          {report.fish.some((f) => !f.likelyNow) && (
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-500">
+              Off-season here:{" "}
+              {report.fish
+                .filter((f) => !f.likelyNow)
+                .map((f) => f.species.name)
+                .join(", ")}
+            </p>
+          )}
+        </div>
+      )}
+
       <ul className="mt-3 list-disc space-y-0.5 pl-5 text-xs text-gray-600 dark:text-gray-400">
         {verdict.reasons.map((r) => (
           <li key={r}>{r}</li>
