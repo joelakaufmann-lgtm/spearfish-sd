@@ -11,10 +11,10 @@ function toMinutes(iso: string): number {
 }
 
 /** Sunrise/sunset for San Diego — varies by <2 min across the county, so one call covers all spots. */
-export async function fetchSun(): Promise<SunTimes | null> {
+export async function fetchSun(date: string): Promise<SunTimes | null> {
   const url =
     "https://api.open-meteo.com/v1/forecast?latitude=32.72&longitude=-117.17" +
-    "&daily=sunrise,sunset&timezone=America/Los_Angeles&forecast_days=1";
+    `&daily=sunrise,sunset&timezone=America/Los_Angeles&start_date=${date}&end_date=${date}`;
   try {
     const res = await fetch(url, { next: { revalidate: 3600 } });
     if (!res.ok) return null;

@@ -36,21 +36,27 @@ export function TideChart({
   curve,
   events,
   sun,
+  showNow = true,
 }: {
   title: string;
   curve: TidePoint[];
   events: TideEvent[];
   sun: SunTimes | null;
+  showNow?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<TidePoint | null>(null);
   const [nowMin, setNowMin] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!showNow) {
+      setNowMin(null);
+      return;
+    }
     setNowMin(nowMinutesLA());
     const id = setInterval(() => setNowMin(nowMinutesLA()), 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [showNow]);
 
   if (curve.length < 2) {
     return <p className="text-xs text-gray-500">Tide curve unavailable for {title}.</p>;
@@ -109,7 +115,7 @@ export function TideChart({
         <h3 className="text-sm font-semibold" style={{ color: "var(--viz-ink)" }}>
           {title}
           <span className="ml-2 font-normal" style={{ color: "var(--viz-muted)" }}>
-            tide height (ft, MLLW) · today
+            tide height (ft, MLLW)
           </span>
         </h3>
         <div className="flex items-center gap-3 text-[11px]" style={{ color: "var(--viz-ink-2)" }}>
@@ -162,12 +168,12 @@ export function TideChart({
                 height={PH}
                 fill="var(--viz-night)"
               />
-              <text x={x(sun.sunriseMinutes) + 4} y={M.t + 11} fontSize="10" fill="var(--viz-ink-2)">
+              <text x={x(sun.sunriseMinutes) + 4} y={M.t + PH - 6} fontSize="10" fill="var(--viz-ink-2)">
                 ☀ {fmtMin(sun.sunriseMinutes)}
               </text>
               <text
                 x={x(sun.sunsetMinutes) - 4}
-                y={M.t + 11}
+                y={M.t + PH - 6}
                 fontSize="10"
                 textAnchor="end"
                 fill="var(--viz-ink-2)"

@@ -5,24 +5,24 @@ export interface MarineConditions {
   seaSurfaceTempF: number | null;
   windMph: number | null;
   windDirectionDeg: number | null;
+  airTempF: number | null;
+  /** The local hour the values represent (current hour today, morning for future days) */
+  atHour: number;
 }
 
 const M_TO_FT = 3.28084;
+const cToF = (c: number) => (c * 9) / 5 + 32;
 
-/** Index of the current hour in an Open-Meteo hourly time array (local-time ISO strings). */
-function currentHourIndex(times: string[]): number {
-  const nowHour = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-  })
-    .format(new Date())
-    .replace(" ", "T");
-  const idx = times.findIndex((t) => t.startsWith(nowHour));
-  return idx >= 0 ? idx : 0;
+function currentHourLA(): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "numeric",
+      hour12: false,
+    })
+      .formatToParts(new Date())
+      .find((p) => p.type === "hour")?.value ?? 0
+  ) % 24;
 }
 
 function pick(values: (number | null)[] | undefined, idx: number): number | null {
@@ -30,7 +30,17 @@ function pick(values: (number | null)[] | undefined, idx: number): number | null
   return typeof v === "number" ? v : null;
 }
 
-export async function fetchMarine(lat: number, lon: number): Promise<MarineConditions> {
+/**
+ * Conditions for a spot on a given local date. For today this is the current
+ * hour; for a future day it's 9am — the typical dive window.
+ */
+export async function fetchMarine(
+  lat: number,
+  lon: number,
+  date: string,
+  isToday: boolean
+): Promise<MarineConditions> {
+  const hour = isToday ? currentHourLA() : 9;
   const empty: MarineConditions = {
     waveHeightFt: null,
     wavePeriodS: null,
@@ -38,18 +48,21 @@ export async function fetchMarine(lat: number, lon: number): Promise<MarineCondi
     seaSurfaceTempF: null,
     windMph: null,
     windDirectionDeg: null,
+    airTempF: null,
+    atHour: hour,
   };
 
+  const coords = `latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}`;
+  const span = `&start_date=${date}&end_date=${date}&timezone=America/Los_Angeles`;
   const marineUrl =
-    "https://marine-api.open-meteo.com/v1/marine" +
-    `?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}` +
+    `https://marine-api.open-meteo.com/v1/marine?${coords}` +
     "&hourly=wave_height,wave_period,wave_direction,sea_surface_temperature" +
-    "&timezone=America/Los_Angeles&forecast_days=1";
+    span;
   const windUrl =
-    "https://api.open-meteo.com/v1/forecast" +
-    `?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}` +
-    "&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph" +
-    "&timezone=America/Los_Angeles&forecast_days=1";
+    `https://api.open-meteo.com/v1/forecast?${coords}` +
+    "&hourly=wind_speed_10m,wind_direction_10m,temperature_2m" +
+    "&wind_speed_unit=mph&temperature_unit=fahrenheit" +
+    span;
 
   const [marineRes, windRes] = await Promise.allSettled([
     fetch(marineUrl, { next: { revalidate: 3600 } }).then((r) => (r.ok ? r.json() : null)),
@@ -60,20 +73,19 @@ export async function fetchMarine(lat: number, lon: number): Promise<MarineCondi
 
   if (marineRes.status === "fulfilled" && marineRes.value?.hourly?.time) {
     const h = marineRes.value.hourly;
-    const i = currentHourIndex(h.time);
-    const heightM = pick(h.wave_height, i);
+    const heightM = pick(h.wave_height, hour);
     out.waveHeightFt = heightM == null ? null : heightM * M_TO_FT;
-    out.wavePeriodS = pick(h.wave_period, i);
-    out.waveDirectionDeg = pick(h.wave_direction, i);
-    const sstC = pick(h.sea_surface_temperature, i);
-    out.seaSurfaceTempF = sstC == null ? null : (sstC * 9) / 5 + 32;
+    out.wavePeriodS = pick(h.wave_period, hour);
+    out.waveDirectionDeg = pick(h.wave_direction, hour);
+    const sstC = pick(h.sea_surface_temperature, hour);
+    out.seaSurfaceTempF = sstC == null ? null : cToF(sstC);
   }
 
   if (windRes.status === "fulfilled" && windRes.value?.hourly?.time) {
     const h = windRes.value.hourly;
-    const i = currentHourIndex(h.time);
-    out.windMph = pick(h.wind_speed_10m, i);
-    out.windDirectionDeg = pick(h.wind_direction_10m, i);
+    out.windMph = pick(h.wind_speed_10m, hour);
+    out.windDirectionDeg = pick(h.wind_direction_10m, hour);
+    out.airTempF = pick(h.temperature_2m, hour);
   }
 
   return out;

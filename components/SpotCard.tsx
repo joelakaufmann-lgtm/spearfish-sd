@@ -39,6 +39,7 @@ export function SpotCard({ report }: { report: SpotReport }) {
           />
         )}
         {conditions.windMph != null && <Chip label="Wind" value={`${Math.round(conditions.windMph)} mph`} />}
+        {conditions.airTempF != null && <Chip label="Air" value={`${Math.round(conditions.airTempF)}°F`} />}
         {conditions.seaSurfaceTempF != null && (
           <Chip label="Water" value={`${Math.round(conditions.seaSurfaceTempF)}°F`} />
         )}

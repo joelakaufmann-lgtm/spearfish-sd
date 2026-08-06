@@ -88,10 +88,12 @@ function minutesOfDay(noaaTime: string): number {
   return h * 60 + m;
 }
 
-export async function fetchTides(station: TideStation): Promise<StationTides | null> {
+export async function fetchTides(station: TideStation, date: string): Promise<StationTides | null> {
+  const noaaDate = date.replaceAll("-", ""); // YYYYMMDD
   const [hilo, fine] = await Promise.all([
-    fetchNoaa(`&interval=hilo&station=${station}&date=today&range=48`),
-    fetchNoaa(`&station=${station}&date=today`), // no interval → 6-minute curve for today
+    fetchNoaa(`&interval=hilo&station=${station}&begin_date=${noaaDate}&range=48`),
+    // no interval → 6-minute curve for the selected day
+    fetchNoaa(`&station=${station}&begin_date=${noaaDate}&range=24`),
   ]);
   if (!hilo) return null;
 
@@ -101,16 +103,23 @@ export async function fetchTides(station: TideStation): Promise<StationTides | n
     heightFt: parseFloat(p.v),
   }));
 
-  const today = nowLocalString().split(" ")[0];
+  const now = nowLocalString();
+  const isToday = now.startsWith(date);
+  // For a future day, read the tide sequence from that day's midnight; slack
+  // reasoning only makes sense relative to the actual current time.
+  const state = isToday
+    ? deriveTideState(events, now)
+    : { ...deriveTideState(events, `${date} 00:00`), nearSlack: false };
+
   const curve: TidePoint[] = (fine ?? [])
-    .filter((p) => p.t.startsWith(today))
+    .filter((p) => p.t.startsWith(date))
     .map((p) => ({ minutes: minutesOfDay(p.t), heightFt: parseFloat(p.v) }));
 
   return {
     station,
     events,
-    state: deriveTideState(events, nowLocalString()),
+    state,
     curve,
-    todayEvents: events.filter((e) => e.time.startsWith(today)),
+    todayEvents: events.filter((e) => e.time.startsWith(date)),
   };
 }

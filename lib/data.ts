@@ -6,6 +6,7 @@ import { matchAdvisory } from "./match";
 import { scoreSpot, overallHeadline, type VerdictResult, type AdvisoryStatus } from "./verdict";
 import { fetchSun, type SunTimes } from "./sun";
 import { fishForSpot, seasonNotes, type FishNow } from "./fish";
+import { laDateString, monthDay, resolveSelectedDate } from "./dates";
 
 export interface SpotReport {
   spot: Spot;
@@ -24,15 +25,9 @@ export interface DashboardData {
   stationTides: StationTides[];
   sun: SunTimes | null;
   seasonNotes: string[];
+  selectedDate: string;
+  isToday: boolean;
   generatedAt: string;
-}
-
-function todayLA(): { month: number; day: number } {
-  const [, month, day] = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Los_Angeles" })
-    .format(new Date())
-    .split("-")
-    .map(Number);
-  return { month, day };
 }
 
 const VERDICT_ORDER = { go: 0, caution: 1, "no-go": 2 } as const;
@@ -43,14 +38,17 @@ function sortRank(r: SpotReport): number {
   return VERDICT_ORDER[r.verdict.verdict];
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(rawDate?: string): Promise<DashboardData> {
+  const selectedDate = resolveSelectedDate(rawDate);
+  const isToday = selectedDate === laDateString(0);
+  const { month, day } = monthDay(selectedDate);
   const stations = [...new Set(SPOTS.map((s) => s.tideStation))];
 
   const [advisories, tidesList, marineList, sun] = await Promise.all([
     fetchAdvisories(),
-    Promise.all(stations.map((st) => fetchTides(st))),
-    Promise.all(SPOTS.map((s) => fetchMarine(s.lat, s.lon))),
-    fetchSun(),
+    Promise.all(stations.map((st) => fetchTides(st, selectedDate))),
+    Promise.all(SPOTS.map((s) => fetchMarine(s.lat, s.lon, selectedDate, isToday))),
+    fetchSun(selectedDate),
   ]);
 
   const tidesByStation = new Map<TideStation, StationTides | null>(
@@ -61,6 +59,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     const conditions = marineList[i];
     const tides = tidesByStation.get(spot.tideStation) ?? null;
 
+    // Advisories are a live snapshot — they apply to today and are shown as
+    // "current status" context for future days.
     let advisoryStatus: AdvisoryStatus;
     let advisoryRow: AdvisoryRow | null = null;
     if (!advisories.ok) {
@@ -86,7 +86,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       advisoryRow,
       conditions,
       tides,
-      fish: fishForSpot(spot.targets, todayLA().month),
+      fish: fishForSpot(spot.targets, month),
     };
   });
 
@@ -99,7 +99,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     }))
   );
 
-  const { month, day } = todayLA();
   return {
     headline,
     reports,
@@ -107,6 +106,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     stationTides: tidesList.filter((t): t is StationTides => t != null),
     sun,
     seasonNotes: seasonNotes(month, day),
+    selectedDate,
+    isToday,
     generatedAt: new Date().toISOString(),
   };
 }
