@@ -7,16 +7,25 @@ export interface TideEvent {
   heightFt: number;
 }
 
+export interface TidePoint {
+  minutes: number; // minutes since local midnight
+  heightFt: number;
+}
+
 export interface StationTides {
   station: TideStation;
   events: TideEvent[];
   state: TideState;
+  /** Today's 6-minute prediction curve, 00:00–24:00 local */
+  curve: TidePoint[];
+  /** Today's high/low events only, for chart markers */
+  todayEvents: TideEvent[];
 }
 
 interface NoaaPrediction {
   t: string;
   v: string;
-  type: "H" | "L";
+  type?: "H" | "L";
 }
 
 /** Current time as "YYYY-MM-DD HH:mm" in America/Los_Angeles, comparable to NOAA lst_ldt strings. */
@@ -44,23 +53,49 @@ export function deriveTideState(events: TideEvent[], nowLocal: string): TideStat
   };
 }
 
-export async function fetchTides(station: TideStation): Promise<StationTides | null> {
-  const url =
-    "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
-    "?product=predictions&interval=hilo&datum=MLLW&units=english" +
-    `&time_zone=lst_ldt&format=json&station=${station}&date=today&range=48`;
+const NOAA_BASE =
+  "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
+  "?product=predictions&datum=MLLW&units=english&time_zone=lst_ldt&format=json";
+
+async function fetchNoaa(query: string): Promise<NoaaPrediction[] | null> {
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const res = await fetch(`${NOAA_BASE}${query}`, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
     const data = (await res.json()) as { predictions?: NoaaPrediction[] };
-    if (!data.predictions?.length) return null;
-    const events: TideEvent[] = data.predictions.map((p) => ({
-      time: p.t,
-      type: p.type,
-      heightFt: parseFloat(p.v),
-    }));
-    return { station, events, state: deriveTideState(events, nowLocalString()) };
+    return data.predictions?.length ? data.predictions : null;
   } catch {
     return null;
   }
+}
+
+function minutesOfDay(noaaTime: string): number {
+  const [h, m] = noaaTime.split(" ")[1].split(":").map(Number);
+  return h * 60 + m;
+}
+
+export async function fetchTides(station: TideStation): Promise<StationTides | null> {
+  const [hilo, fine] = await Promise.all([
+    fetchNoaa(`&interval=hilo&station=${station}&date=today&range=48`),
+    fetchNoaa(`&station=${station}&date=today`), // no interval → 6-minute curve for today
+  ]);
+  if (!hilo) return null;
+
+  const events: TideEvent[] = hilo.map((p) => ({
+    time: p.t,
+    type: p.type as "H" | "L",
+    heightFt: parseFloat(p.v),
+  }));
+
+  const today = nowLocalString().split(" ")[0];
+  const curve: TidePoint[] = (fine ?? [])
+    .filter((p) => p.t.startsWith(today))
+    .map((p) => ({ minutes: minutesOfDay(p.t), heightFt: parseFloat(p.v) }));
+
+  return {
+    station,
+    events,
+    state: deriveTideState(events, nowLocalString()),
+    curve,
+    todayEvents: events.filter((e) => e.time.startsWith(today)),
+  };
 }

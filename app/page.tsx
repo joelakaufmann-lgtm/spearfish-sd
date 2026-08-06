@@ -1,7 +1,16 @@
 import { getDashboardData } from "@/lib/data";
 import { OverallHeadline } from "@/components/OverallHeadline";
 import { SpotCard } from "@/components/SpotCard";
+import { TideChart } from "@/components/TideChart";
 import { COUNTY_FALLBACK_URL } from "@/lib/advisories";
+import { TIDE_STATIONS } from "@/lib/spots";
+
+function fmtSunTime(iso: string): string {
+  const [h, m] = iso.split("T")[1].split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
 
 export const revalidate = 900;
 
@@ -23,6 +32,31 @@ export default async function Home() {
         </div>
       )}
 
+      <section className="mb-8">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-xl font-bold">Today&rsquo;s Tides</h2>
+          {data.sun && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              ☀ Sunrise <span className="font-semibold">{fmtSunTime(data.sun.sunrise)}</span>
+              <span className="mx-2">·</span>☾ Sunset{" "}
+              <span className="font-semibold">{fmtSunTime(data.sun.sunset)}</span>
+            </p>
+          )}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {data.stationTides.map((st) => (
+            <TideChart
+              key={st.station}
+              title={TIDE_STATIONS[st.station]}
+              curve={st.curve}
+              events={st.todayEvents}
+              sun={data.sun}
+            />
+          ))}
+        </div>
+      </section>
+
+      <h2 className="mb-3 text-xl font-bold">Spots</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {data.reports.map((r) => (
           <SpotCard key={r.spot.slug} report={r} />

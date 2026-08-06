@@ -4,6 +4,7 @@ import { fetchAdvisories, type AdvisoriesResult, type AdvisoryRow } from "./advi
 import { fetchMarine, type MarineConditions } from "./marine";
 import { matchAdvisory } from "./match";
 import { scoreSpot, overallHeadline, type VerdictResult, type AdvisoryStatus } from "./verdict";
+import { fetchSun, type SunTimes } from "./sun";
 
 export interface SpotReport {
   spot: Spot;
@@ -18,6 +19,8 @@ export interface DashboardData {
   headline: ReturnType<typeof overallHeadline>;
   reports: SpotReport[];
   advisories: AdvisoriesResult;
+  stationTides: StationTides[];
+  sun: SunTimes | null;
   generatedAt: string;
 }
 
@@ -32,10 +35,11 @@ function sortRank(r: SpotReport): number {
 export async function getDashboardData(): Promise<DashboardData> {
   const stations = [...new Set(SPOTS.map((s) => s.tideStation))];
 
-  const [advisories, tidesList, marineList] = await Promise.all([
+  const [advisories, tidesList, marineList, sun] = await Promise.all([
     fetchAdvisories(),
     Promise.all(stations.map((st) => fetchTides(st))),
     Promise.all(SPOTS.map((s) => fetchMarine(s.lat, s.lon))),
+    fetchSun(),
   ]);
 
   const tidesByStation = new Map<TideStation, StationTides | null>(
@@ -76,5 +80,12 @@ export async function getDashboardData(): Promise<DashboardData> {
     }))
   );
 
-  return { headline, reports, advisories, generatedAt: new Date().toISOString() };
+  return {
+    headline,
+    reports,
+    advisories,
+    stationTides: tidesList.filter((t): t is StationTides => t != null),
+    sun,
+    generatedAt: new Date().toISOString(),
+  };
 }
