@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "fetch-advisories": "node --experimental-strip-types scripts/fetch-advisories.mjs",
+    "prebuild": "npm run fetch-advisories",
+    "predev": "npm run fetch-advisories",
+    "test": "vitest run"
   },
   "dependencies": {
     "cheerio": "^1.2.0",

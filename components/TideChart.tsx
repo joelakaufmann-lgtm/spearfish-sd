@@ -10,6 +10,10 @@ const M = { l: 38, r: 14, t: 32, b: 26 };
 const PW = W - M.l - M.r;
 const PH = H - M.t - M.b;
 
+function eventMin(e: TideEvent): number {
+  return Number(e.time.slice(11, 13)) * 60 + Number(e.time.slice(14, 16));
+}
+
 function fmtMin(min: number): string {
   const h = Math.floor(min / 60);
   const m = Math.round(min % 60);
@@ -74,9 +78,7 @@ export function TideChart({
   const hourTicks = Array.from({ length: 24 }, (_, h) => h); // hourly axis
 
   // Slack windows: ±2h around each high/low, merged where they overlap
-  const eventMinutes = events.map(
-    (e) => Number(e.time.slice(11, 13)) * 60 + Number(e.time.slice(14, 16))
-  );
+  const eventMinutes = events.map(eventMin);
   const slackWindows: [number, number][] = [];
   for (const min of [...eventMinutes].sort((a, b) => a - b)) {
     const from = Math.max(0, min - 120);
@@ -95,6 +97,15 @@ export function TideChart({
 
   const nearest = (min: number): TidePoint =>
     curve.reduce((a, b) => (Math.abs(b.minutes - min) < Math.abs(a.minutes - min) ? b : a));
+
+  // Sun labels sit at the plot bottom unless a low-tide label is nearby, then flip to the top
+  // (and vice versa for highs) so text never overlaps.
+  const sunLabelY = (sunMin: number): number => {
+    const nearLow = events.some(
+      (e) => e.type === "L" && Math.abs(x(eventMin(e)) - x(sunMin)) < 60
+    );
+    return nearLow ? M.t + 11 : M.t + PH - 6;
+  };
 
   function pointerToPoint(clientX: number): TidePoint | null {
     const rect = wrapRef.current?.getBoundingClientRect();
@@ -168,12 +179,12 @@ export function TideChart({
                 height={PH}
                 fill="var(--viz-night)"
               />
-              <text x={x(sun.sunriseMinutes) + 4} y={M.t + PH - 6} fontSize="10" fill="var(--viz-ink-2)">
+              <text x={x(sun.sunriseMinutes) + 4} y={sunLabelY(sun.sunriseMinutes)} fontSize="10" fill="var(--viz-ink-2)">
                 ☀ {fmtMin(sun.sunriseMinutes)}
               </text>
               <text
                 x={x(sun.sunsetMinutes) - 4}
-                y={M.t + PH - 6}
+                y={sunLabelY(sun.sunsetMinutes)}
                 fontSize="10"
                 textAnchor="end"
                 fill="var(--viz-ink-2)"
@@ -254,7 +265,7 @@ export function TideChart({
 
           {/* high/low markers with direct labels */}
           {events.map((e) => {
-            const min = Number(e.time.slice(11, 13)) * 60 + Number(e.time.slice(14, 16));
+            const min = eventMin(e);
             const isH = e.type === "H";
             const ly = isH ? y(e.heightFt) - 20 : Math.min(y(e.heightFt) + 16, M.t + PH - 12);
             const lx = Math.min(Math.max(x(min), M.l + 24), W - M.r - 24);

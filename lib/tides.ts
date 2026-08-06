@@ -74,7 +74,7 @@ const NOAA_BASE =
 
 async function fetchNoaa(query: string): Promise<NoaaPrediction[] | null> {
   try {
-    const res = await fetch(`${NOAA_BASE}${query}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${NOAA_BASE}${query}`);
     if (!res.ok) return null;
     const data = (await res.json()) as { predictions?: NoaaPrediction[] };
     return data.predictions?.length ? data.predictions : null;

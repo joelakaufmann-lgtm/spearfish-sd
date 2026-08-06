@@ -1,16 +1,22 @@
-import Link from "next/link";
+"use client";
+
 import { selectableDays } from "@/lib/dates";
 
-export function DaySelector({ selected }: { selected: string }) {
+export function DaySelector({
+  selected,
+  onSelect,
+}: {
+  selected: string;
+  onSelect: (date: string) => void;
+}) {
   return (
     <nav aria-label="Choose a day" className="flex flex-wrap gap-1.5">
       {selectableDays().map((d) => {
         const active = d.date === selected;
         return (
-          <Link
+          <button
             key={d.date}
-            href={d.isToday ? "/" : `/?date=${d.date}`}
-            prefetch={false}
+            onClick={() => onSelect(d.date)}
             aria-current={active ? "date" : undefined}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               active
@@ -19,7 +25,7 @@ export function DaySelector({ selected }: { selected: string }) {
             }`}
           >
             {d.label}
-          </Link>
+          </button>
         );
       })}
     </nav>

@@ -65,8 +65,8 @@ export async function fetchMarine(
     span;
 
   const [marineRes, windRes] = await Promise.allSettled([
-    fetch(marineUrl, { next: { revalidate: 3600 } }).then((r) => (r.ok ? r.json() : null)),
-    fetch(windUrl, { next: { revalidate: 3600 } }).then((r) => (r.ok ? r.json() : null)),
+    fetch(marineUrl).then((r) => (r.ok ? r.json() : null)),
+    fetch(windUrl).then((r) => (r.ok ? r.json() : null)),
   ]);
 
   const out = { ...empty };

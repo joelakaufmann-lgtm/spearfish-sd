@@ -16,7 +16,7 @@ export async function fetchSun(date: string): Promise<SunTimes | null> {
     "https://api.open-meteo.com/v1/forecast?latitude=32.72&longitude=-117.17" +
     `&daily=sunrise,sunset&timezone=America/Los_Angeles&start_date=${date}&end_date=${date}`;
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
     const sunrise: string | undefined = data?.daily?.sunrise?.[0];

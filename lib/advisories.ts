@@ -43,14 +43,14 @@ export function parseAdvisories(html: string): AdvisoryRow[] {
   return rows;
 }
 
-export async function fetchAdvisories(): Promise<AdvisoriesResult> {
+/** Live scrape of the Coastkeeper page — build-time only (browsers are CORS-blocked). */
+export async function scrapeAdvisories(): Promise<AdvisoriesResult> {
   try {
     const res = await fetch(COASTKEEPER_URL, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; spearfish-sd/1.0; +https://github.com/joelakaufmann)",
+          "Mozilla/5.0 (compatible; spearfish-sd/1.0; +https://github.com/joelakaufmann-lgtm/spearfish-sd)",
       },
-      next: { revalidate: 900 },
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const html = await res.text();
@@ -60,6 +60,18 @@ export async function fetchAdvisories(): Promise<AdvisoriesResult> {
       return { ok: false, error: "Advisory table not found — page layout may have changed" };
     }
     return { ok: true, rows, fetchedAt: new Date().toISOString() };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "fetch failed" };
+  }
+}
+
+/** Client-side load of the build-time snapshot baked into public/advisories.json. */
+export async function fetchAdvisories(): Promise<AdvisoriesResult> {
+  try {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const res = await fetch(`${base}/advisories.json`);
+    if (!res.ok) return { ok: false, error: `advisories snapshot missing (HTTP ${res.status})` };
+    return (await res.json()) as AdvisoriesResult;
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "fetch failed" };
   }
