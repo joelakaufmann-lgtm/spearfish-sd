@@ -65,10 +65,20 @@ export async function scrapeAdvisories(): Promise<AdvisoriesResult> {
   }
 }
 
-/** Client-side load of the build-time snapshot baked into public/advisories.json. */
+/**
+ * Client-side advisory load. Prefers the live API route (exists on server
+ * deploys like Vercel, ≤15 min stale); falls back to the build-time snapshot
+ * baked into public/advisories.json (static hosts like GitHub Pages, ≤6 h).
+ */
 export async function fetchAdvisories(): Promise<AdvisoriesResult> {
+  const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   try {
-    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const live = await fetch(`${base}/api/advisories`);
+    if (live.ok) return (await live.json()) as AdvisoriesResult;
+  } catch {
+    // static host or API down — fall through to the snapshot
+  }
+  try {
     const res = await fetch(`${base}/advisories.json`);
     if (!res.ok) return { ok: false, error: `advisories snapshot missing (HTTP ${res.status})` };
     return (await res.json()) as AdvisoriesResult;

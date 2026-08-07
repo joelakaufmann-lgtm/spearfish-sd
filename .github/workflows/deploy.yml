@@ -28,8 +28,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # The live-advisories API route can't exist in a static export — the
+      # client falls back to the baked public/advisories.json instead.
+      - run: rm -rf app/api
       - run: npm run build
         env:
+          STATIC_EXPORT: "1"
           NEXT_PUBLIC_BASE_PATH: /spearfish-sd
       - uses: actions/upload-pages-artifact@v3
         with:

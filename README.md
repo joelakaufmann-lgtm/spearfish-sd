@@ -7,7 +7,8 @@ A daily go / caution / no-go call for San Diego spearfishing spots, combining:
 - **Water quality** — beach advisories and closures relayed by [San Diego Coastkeeper](https://www.sdcoastkeeper.org/beach-advisories/) from County of San Diego DEHQ (baked to `public/advisories.json` at build time, refreshed by a scheduled GitHub Action)
 - **Spots, seasons & limits** — 12 curated spots with Marine Protected Area legality, local speargun ordinances, expected species by month, and 2026 bag/size limits (see `outputs/san-diego-spearfishing-spots-and-regulations-2026.md`)
 
-**Live site:** https://joelakaufmann-lgtm.github.io/spearfish-sd/
+**Live site:** https://spearfish-sd.vercel.app (live advisories via `/api/advisories`, ≤15 min)
+**Mirror:** https://joelakaufmann-lgtm.github.io/spearfish-sd/ (static, advisories snapshot ≤6 h)
 
 ## How the verdict works
 
@@ -22,11 +23,12 @@ is unavailable, verdicts cap at caution — never a silent "go".
 npm install
 npm run dev        # fetches a fresh advisories snapshot, then starts Next.js
 npm test           # vitest: verdict thresholds, advisory parser (fixture), matching, seasons
-npm run build      # static export to out/ (set NEXT_PUBLIC_BASE_PATH for project pages)
+npm run build      # server build (what Vercel runs); STATIC_EXPORT=1 for the Pages export
 ```
 
-Built with Next.js (static export) + TypeScript + Tailwind. Deployed to GitHub Pages by
-`.github/workflows/deploy.yml`, which also rebuilds every 6 hours to refresh advisories.
+Built with Next.js + TypeScript + Tailwind. One codebase, two targets: Vercel (server build,
+live advisories) and GitHub Pages (static export via `.github/workflows/deploy.yml`, which
+rebuilds every 6 hours to refresh the advisories snapshot).
 
 ## Disclaimers
 
